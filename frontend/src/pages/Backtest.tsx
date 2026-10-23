@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { fmtDate, fmtNum, verdictColor } from "../format";
+import { fmtDate, fmtNum, verdictBadge } from "../format";
 import type { BacktestRow } from "../types";
 
 const pct = (v: number | null) =>
-  v === null ? <span className="text-slate-600">—</span> :
-  <span className={v >= 0 ? "text-bull" : "text-bear"}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>;
+  v === null ? <span className="text-slate-400">—</span> :
+  <span className={`font-medium ${v >= 0 ? "text-bull-dark" : "text-bear-dark"}`}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>;
 
 export default function Backtest() {
   const [rows, setRows] = useState<BacktestRow[] | null>(null);
@@ -15,56 +15,90 @@ export default function Backtest() {
 
   const judged = rows?.filter((r) => r.hit !== null) ?? [];
   const hits = judged.filter((r) => r.hit).length;
+  const avg = (k: "listing_gain_pct" | "current_return_pct") => {
+    const v = (rows ?? []).map((r) => r[k]).filter((x): x is number => x !== null);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Back-test: verdict vs market</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          For listed IPOs, the latest saved verdict is compared with the listing-day close and the latest
-          close against the upper price band. Prices from Yahoo Finance (yfinance), with a CSV fallback for offline demos.
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Back-test: verdict vs market</h1>
+        <p className="mt-1 max-w-3xl text-sm text-slate-600">
+          For listed IPOs with a saved debate, the latest verdict is compared with the listing-day close and the
+          latest close against the upper price band. Prices from Yahoo Finance, with a CSV fallback for offline demos.
         </p>
       </div>
-      {judged.length > 0 && (
-        <div className="card inline-block">
-          <div className="text-xs uppercase text-slate-500">Directional hit rate (listing day)</div>
-          <div className="text-2xl font-bold">{hits}/{judged.length}</div>
-          <div className="text-xs text-slate-500">Tiny sample: an illustration, not evidence of skill.</div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="card">
+          <div className="section-title">IPOs evaluated</div>
+          <div className="mt-1.5 text-2xl font-semibold">{rows?.length ?? "—"}</div>
         </div>
-      )}
-      {error && <div className="card text-bear">{error}</div>}
-      {!rows && !error && <div className="text-slate-500">Loading prices…</div>}
+        <div className="card">
+          <div className="section-title">Directional hit rate</div>
+          <div className="mt-1.5 text-2xl font-semibold">{judged.length ? `${hits}/${judged.length}` : "—"}</div>
+          <div className="mt-0.5 text-xs text-slate-500">Neutral verdicts excluded</div>
+        </div>
+        <div className="card">
+          <div className="section-title">Avg listing gain</div>
+          <div className="mt-1.5 text-2xl">{pct(avg("listing_gain_pct"))}</div>
+        </div>
+        <div className="card">
+          <div className="section-title">Avg return to date</div>
+          <div className="mt-1.5 text-2xl">{pct(avg("current_return_pct"))}</div>
+        </div>
+      </div>
+
+      {error && <div className="card text-sm text-bear-dark">{error}</div>}
+      {!rows && !error && <div className="text-sm text-slate-500">Loading prices…</div>}
       {rows && (
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
+        <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-slate-900 text-left text-xs uppercase tracking-wide text-slate-500">
+            <thead className="table-head">
               <tr>
-                <th className="px-4 py-2">Company</th><th className="px-4 py-2">Listed</th>
-                <th className="px-4 py-2 text-right">Issue ₹</th><th className="px-4 py-2 text-right">Listing close</th>
-                <th className="px-4 py-2 text-right">Listing gain</th><th className="px-4 py-2 text-right">Latest</th>
-                <th className="px-4 py-2 text-right">Return</th><th className="px-4 py-2">Verdict</th>
-                <th className="px-4 py-2">Hit?</th><th className="px-4 py-2">Prices</th>
+                <th className="px-4 py-2.5">Company</th><th className="px-4 py-2.5">Listed</th>
+                <th className="px-4 py-2.5 text-right">Issue ₹</th><th className="px-4 py-2.5 text-right">Listing close</th>
+                <th className="px-4 py-2.5 text-right">Listing gain</th><th className="px-4 py-2.5 text-right">Latest close</th>
+                <th className="px-4 py-2.5 text-right">Return</th><th className="px-4 py-2.5">Verdict</th>
+                <th className="px-4 py-2.5 text-center">Hit</th><th className="px-4 py-2.5">Prices</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {rows.map((r) => (
-                <tr key={r.ipo_id} className="border-t border-slate-800/70">
-                  <td className="px-4 py-2"><Link className="hover:underline" to={`/ipo/${r.ipo_id}`}>{r.company}</Link></td>
-                  <td className="px-4 py-2 text-slate-400">{fmtDate(r.listing_date)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{fmtNum(r.issue_price)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{fmtNum(r.listing_close)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{pct(r.listing_gain_pct)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{fmtNum(r.last_close)} <span className="text-xs text-slate-500">{r.last_date ? fmtDate(r.last_date) : ""}</span></td>
-                  <td className="px-4 py-2 text-right tabular-nums">{pct(r.current_return_pct)}</td>
-                  <td className={`px-4 py-2 ${verdictColor(r.verdict)}`}>{r.verdict ?? <span className="text-slate-600">no debate yet</span>}</td>
-                  <td className="px-4 py-2">{r.hit === null ? "—" : r.hit ? "✅" : "❌"}</td>
-                  <td className="px-4 py-2 text-xs text-slate-500">{r.price_source}</td>
+                <tr key={r.ipo_id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <Link className="font-medium text-slate-900 hover:text-brand" to={`/ipo/${r.ipo_id}`}>{r.company}</Link>
+                    {r.symbol && <div className="text-xs text-slate-500">NSE: {r.symbol}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{fmtDate(r.listing_date)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.issue_price)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.listing_close)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{pct(r.listing_gain_pct)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {fmtNum(r.last_close)}
+                    <div className="text-xs text-slate-400">{r.last_date ? fmtDate(r.last_date) : ""}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">{pct(r.current_return_pct)}</td>
+                  <td className="px-4 py-3">
+                    {r.verdict ? <span className={`chip ${verdictBadge(r.verdict)}`}>{r.verdict}</span>
+                      : <span className="text-xs text-slate-400">No debate yet</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {r.hit === null ? <span className="text-slate-400">—</span> :
+                      <span className={`chip ${r.hit ? "border-bull-line bg-bull-soft text-bull-dark" : "border-bear-line bg-bear-soft text-bear-dark"}`}>
+                        {r.hit ? "Hit" : "Miss"}
+                      </span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{r.price_source}</td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">No listed IPOs yet.</td></tr>}
+              {!rows.length && <tr><td colSpan={10} className="px-4 py-10 text-center text-slate-500">No listed IPOs with a saved debate yet.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
+      <p className="text-xs text-slate-500">Small sample: this illustrates the method and is not evidence of predictive skill.</p>
     </div>
   );
 }
