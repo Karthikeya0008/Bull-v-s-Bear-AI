@@ -66,8 +66,11 @@ def register_document(session: Session, ipo_id: str, path: Path, doc_type: str,
                        local_path=str(path), status="pending")
         session.add(doc)
         session.flush()
-    elif source_url and doc.source_url.startswith("file:"):
-        doc.source_url = source_url
+    else:  # a file first seen in the drop folder: fill in what the filing record knows
+        if source_url and doc.source_url.startswith("file:"):
+            doc.source_url = source_url
+        if filed_date and doc.filed_date is None:
+            doc.filed_date = filed_date
     return doc
 
 

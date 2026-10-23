@@ -1,0 +1,48 @@
+# Listed-peer P/E ratios used for the "P/E vs peers" metric. Edit freely.
+# Values are copied from each offer document's "Basis for Offer Price" peer table
+# (page numbers refer to that RHP) so they stay traceable. Set exclude: true to keep a peer
+# visible but out of the median (e.g. when the document flags it as not comparable).
+
+jio-platforms:
+  source: Jio Platforms RHP (15 Oct 2026), Basis for Issue Price, p.129 (prices as on 13 Oct 2026)
+  peers:
+    - name: Bharti Airtel Limited
+      pe: 40.71
+    - name: Vodafone Idea Limited
+      pe: 3.99
+      exclude: true
+      note: RHP note 1 - FY2026 profit includes a Rs 586,070 mn exceptional gain; not comparable
+
+moneyview:
+  source: Moneyview RHP (21 Sep 2026), Basis for Offer Price, p.151 (prices as on 18 Sep 2026)
+  peers:
+    - name: OnEMI Technology Solutions Limited
+      pe: 16.62
+    - name: PB Fintech Limited
+      pe: 120.33
+    - name: One97 Communications Limited
+      pe: 213.45
+    - name: Bajaj Finance Limited
+      pe: 33.66
+    - name: SBI Cards and Payment Services Limited
+      pe: 27.98
+
+orient-cables-india:
+  source: Orient Cables (India) RHP (21 Sep 2026), Basis for Offer Price, p.145 (prices as on 7 Sep 2026)
+  peers:
+    - name: RR Kabel Limited
+      pe: 54.85
+    - name: Polycab India Limited
+      pe: 46.69
+    - name: Finolex Cables Limited
+      pe: 26.29
+    - name: Havells India Limited
+      pe: 42.69
+    - name: KEI Industries Limited
+      pe: 48.99
+    - name: Paramount Communications Limited
+      pe: 33.47
+    - name: Birla Cable Limited
+      pe: 63.54
+    - name: Sterlite Technologies Limited
+      pe: 708.38

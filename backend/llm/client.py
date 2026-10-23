@@ -102,14 +102,17 @@ class LLMClient:
     def complete_json(self, system: str, user: str, temperature: float = 0.3) -> LlmResponse:
         """Return the first successful JSON response across the provider chain."""
         errors = []
-        for provider in self.providers:
-            model = self._model(provider)
-            key = self.cache.key(provider, model, system, user, f"{temperature:.2f}")
-            hit = self.cache.get_json(key)
+        keys = {p: self.cache.key(p, self._model(p), system, user, f"{temperature:.2f}")
+                for p in self.providers}
+        for provider in self.providers:  # any cached answer wins: reruns cost nothing
+            hit = self.cache.get_json(keys[provider])
             if hit is not None:
+                model = self._model(provider)
                 self._log(provider, model, hit.get("usage", {}), cached=True, latency=0)
                 return LlmResponse(hit["data"], provider, model, True,
                                    *self._tokens(hit.get("usage", {})))
+        for provider in self.providers:
+            model, key = self._model(provider), keys[provider]
             for attempt in range(self.s.llm_max_retries):
                 t0 = time.perf_counter()
                 try:

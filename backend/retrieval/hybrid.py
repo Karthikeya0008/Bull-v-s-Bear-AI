@@ -23,9 +23,30 @@ _STOP = set("""a an the of to in and or for on by with from as at is are was wer
 these those it its our we us their they which such any all other than into upto up per""".split())
 
 
+# Query expansion with offer-document vocabulary: investors say "debt", DRHPs say
+# "borrowings"; investors say "use of proceeds", DRHPs say "objects of the issue".
+DOMAIN_SYNONYMS = {
+    "debt": ["borrowings", "indebtedness"],
+    "loan": ["borrowings"], "loans": ["borrowings"],
+    "repayment": ["prepayment", "repay"], "repay": ["repayment", "prepayment"],
+    "proceeds": ["objects", "net"], "ipo": ["issue", "offer"],
+    "lawsuit": ["litigation", "proceedings"], "lawsuits": ["litigation", "proceedings"],
+    "dilution": ["offer", "sale", "selling", "shareholders"],
+    "valuation": ["price", "peers", "basis"],
+}
+
+
 def tokenize(text: str) -> list[str]:
     """Lowercase alphanumeric tokens without stop-words (numbers are kept)."""
     return [t for t in re.findall(r"[a-z0-9]+(?:\.[0-9]+)?", text.lower()) if t not in _STOP]
+
+
+def expand_query(tokens: list[str]) -> list[str]:
+    """Add offer-document synonyms to BM25 query tokens (dense search uses the raw query)."""
+    out = list(tokens)
+    for t in tokens:
+        out.extend(s for s in DOMAIN_SYNONYMS.get(t, []) if s not in out)
+    return out
 
 
 def rrf_fuse(rankings: list[list[str]], k: int = RRF_K) -> list[tuple[str, float]]:
@@ -114,17 +135,20 @@ class HybridRetriever:
         return self._store
 
     def search(self, ipo_id: str, query: str, k: int = 8, pool: int = 40,
-               policy: str = "latest", sections: list[str] | None = None) -> list[SearchHit]:
+               policy: str = "latest", sections: list[str] | None = None,
+               exclude_sections: set[str] | None = None) -> list[SearchHit]:
         """Top ``k`` chunks for ``query`` within ``ipo_id`` (optionally within ``sections``)."""
         doc_ids = select_doc_ids(ipo_id, policy)
         if not doc_ids:
             return []
         corpus = _corpus(tuple(doc_ids))
         allowed = [i for i in corpus.ids
-                   if sections is None or corpus.chunks[i]["section"] in sections]
+                   if (sections is None or corpus.chunks[i]["section"] in sections)
+                   and corpus.chunks[i]["section"] not in (exclude_sections or set())]
+        pool = pool * 2 if exclude_sections else pool
         allowed_set = set(allowed)
 
-        scores = corpus.bm25.get_scores(tokenize(query))
+        scores = corpus.bm25.get_scores(expand_query(tokenize(query)))
         bm25_rank = [i for i, sc in sorted(zip(corpus.ids, scores), key=lambda x: -x[1])
                      if sc > 0 and i in allowed_set][:pool]
 

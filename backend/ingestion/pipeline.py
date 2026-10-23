@@ -56,7 +56,9 @@ def ingest_document(session: Session, doc: Document, *, embed: bool = True,
     session.add_all(Chunk(chunk_id=c.chunk_id, ipo_id=doc.ipo_id, doc_id=doc.doc_id,
                           section=c.section, page=c.page, page_end=c.page_end,
                           ordinal=c.ordinal, text=c.text) for c in chunks)
-    session.flush()
+    # Commit now: the embedding cache writes through its own connection, and SQLite allows
+    # one writer at a time.
+    session.commit()
 
     if embed and chunks:
         embedder = embedder or Embedder()

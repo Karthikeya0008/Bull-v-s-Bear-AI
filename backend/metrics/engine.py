@@ -181,7 +181,22 @@ def compute(ipo: Ipo, fin: Financials) -> list[MetricResult]:
     out.append(_altman(fin, p))
     out.append(_beneish(fin, p, prev))
     out.extend(_valuation(ipo, fin, p))
+    out.append(_issue_structure(ipo, p))
     return out
+
+
+def _issue_structure(ipo: Ipo, p: str) -> MetricResult:
+    """Share of the issue that is an offer for sale (money to sellers, not the company)."""
+    fresh, ofs = ipo.fresh_issue_cr, ipo.ofs_cr
+    inputs = {"fresh_issue_cr": {"value": fresh, "page": None, "source": "IPO registry"},
+              "ofs_cr": {"value": ofs, "page": None, "source": "IPO registry"}}
+    total = (fresh or 0) + (ofs or 0)
+    value = None if fresh is None or ofs is None or total == 0 else ofs / total * 100
+    return MetricResult("ofs_share", "Offer-for-sale share of issue", "issue",
+                        None if value is None else round(value, 2), "%",
+                        "ofs_cr / (fresh_issue_cr + ofs_cr)", inputs,
+                        "ok" if value is not None else "skipped",
+                        None if value is not None else "Issue size split not in registry")
 
 
 def _pct(x: float | None) -> float | None:
@@ -281,7 +296,7 @@ def _valuation(ipo: Ipo, fin: Financials, p: str) -> list[MetricResult]:
                         inputs, "ok" if pe is not None else "skipped",
                         None if pe is not None else "Needs price band and positive EPS")]
     peers = (_load_peers().get(ipo.ipo_id) or {}).get("peers") or []
-    peer_pes = [x.get("pe") for x in peers if x.get("pe") is not None]
+    peer_pes = [x.get("pe") for x in peers if x.get("pe") is not None and not x.get("exclude")]
     med = F.median(peer_pes)
     rel = F.safe_div(pe, med) if pe is not None else None
     out.append(MetricResult(

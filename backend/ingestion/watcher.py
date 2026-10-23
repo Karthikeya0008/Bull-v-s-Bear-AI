@@ -61,7 +61,8 @@ def scan_local(session: Session, report: WatchReport) -> None:
             session, local_drop.company_from_folder(ipo_id), "local")
         for pdf in pdfs:
             doc = register_document(session, ipo.ipo_id, pdf,
-                                    local_drop.doc_type_from_filename(pdf))
+                                    local_drop.doc_type_from_filename(pdf),
+                                    local_drop.date_from_filename(pdf))
             if doc.status == "pending":
                 report.local_docs.append(str(pdf))
 

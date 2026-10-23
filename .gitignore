@@ -28,3 +28,5 @@ frontend/dist/
 Thumbs.db
 .vscode/
 .idea/
+data/*.db-shm
+data/*.db-wal

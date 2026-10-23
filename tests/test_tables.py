@@ -6,13 +6,37 @@ from backend.processing.line_items import match_line_item, normalize_label
 from backend.processing.pdf_parser import parse_pdf
 from backend.processing.sections import detect_sections
 from backend.processing.tables import (
+    Column,
+    assign_columns,
     detect_periods,
     detect_unit,
     extract_financials,
     extract_page_rows,
+    lines_from_text,
+    lines_from_words,
     parse_number,
     split_row,
 )
+
+
+def _w(text, x0, x1, top=100.0):
+    return {"text": text, "x0": x0, "x1": x1, "top": top}
+
+
+def test_lines_from_words_rejoins_split_numbers():
+    words = [_w("Property,", 10, 50), _w("plant", 52, 70), _w("4", 200, 204),
+             _w("1", 300, 304), _w("26.52", 305.5, 325), _w("(", 380, 383), _w("2.32)", 384, 400)]
+    (line,) = lines_from_words(words)
+    assert line.label == "Property, plant"
+    assert [v for _x, v in line.values] == [4, 126.52, -2.32]
+
+
+def test_assign_columns_by_position_skips_blank_cells():
+    cols = [Column("STUB-2026-06", date(2026, 6, 30), 300), Column("FY2026", date(2026, 3, 31), 400),
+            Column("FY2025", date(2025, 3, 31), 500)]
+    assert assign_columns([(395.0, 7.0)], cols) == {"FY2026": 7.0}
+    assert assign_columns([(200.0, 9.0), (301, 1.0), (402, 2.0), (498, 3.0)], cols) == \
+        {"STUB-2026-06": 1.0, "FY2026": 2.0, "FY2025": 3.0}
 
 
 @pytest.mark.parametrize("token,expected", [
@@ -62,10 +86,11 @@ def test_line_item_matching_and_context():
 
 
 def test_extract_page_rows_uses_last_n_numbers_and_converts_units():
-    periods = detect_periods("March 31, 2026 March 31, 2025")
-    lines = ["Non-current liabilities", "Borrowings 18 1,000.00 2,000.00",
-             "Current liabilities", "Borrowings 19 300.00 (400.00)", "Some unknown line 1 2"]
-    rows = extract_page_rows(lines, "balance_sheet", "consolidated", "crore", 10, "FI", periods)
+    columns = [Column(p, e) for p, e in detect_periods("March 31, 2026 March 31, 2025")]
+    lines = lines_from_text(["Non-current liabilities", "Borrowings 18 1,000.00 2,000.00",
+                             "Current liabilities", "Borrowings 19 300.00 (400.00)",
+                             "Some unknown line 1 2"])
+    rows = extract_page_rows(lines, "balance_sheet", "consolidated", "crore", 10, "FI", columns)
     got = {(r.line_item, r.period): r.value_inr_mn for r in rows}
     assert got == {("non_current_borrowings", "FY2026"): 10000.0,
                    ("non_current_borrowings", "FY2025"): 20000.0,

@@ -63,8 +63,23 @@ class Verification:
         return self.__dict__.copy()
 
 
+_ATTRIBUTION_RX = re.compile(
+    r"^(?:in closing:\s*)?(?:the|our|its)?\s*[\w'’ ,&-]{0,80}?\s*(?:section|document|drhp|rhp|"
+    r"prospectus|filing)\s*(?:\(p\.?\s*\d+\))?\s*(?:states|says|notes|discloses|shows|reports)"
+    r"(?:\s+that)?\s*:?\s*", re.IGNORECASE)
+_PAGE_REF_RX = re.compile(r"\b(?:p|pp|page|pages)\.?\s*\d+(?:\s*[-–]\s*\d+)?", re.IGNORECASE)
+
+
+def hypothesis_text(claim_text: str) -> str:
+    """The factual content of a claim for NLI: drops 'The Risk Factors section (p.54) states:'
+    wrappers and surrounding quotes, which the source chunk itself never says."""
+    t = _ATTRIBUTION_RX.sub("", claim_text.strip())
+    return t.strip().strip('"“”').strip() or claim_text
+
+
 def extract_figures(text: str) -> list[tuple[str, float]]:
-    """Numbers that matter in a claim: skips years, single digits and list markers."""
+    """Numbers that matter in a claim: skips years, page references, single digits, list markers."""
+    text = _PAGE_REF_RX.sub(" ", text)
     out = []
     for m in _NUM_RX.finditer(text):
         raw = m.group(0)
@@ -201,7 +216,7 @@ def verify_claims(claims: list[dict], evidence: dict[str, Evidence]) -> list[Ver
         for r in c.get("evidence") or []:
             e = evidence.get(str(r))
             if e is not None and e.kind == "chunk":
-                pairs.append((e.text, c.get("text", "")))
+                pairs.append((e.text, hypothesis_text(c.get("text", ""))))
                 owners.append(i)
     scores, method = entailment_scores(pairs) if pairs else ([], "nli")
     best: dict[int, tuple[float, float]] = {}
@@ -218,6 +233,7 @@ def metric_evidence(m: dict) -> Evidence:
     for inp in (m.get("inputs") or {}).values():
         if isinstance(inp, dict) and isinstance(inp.get("value"), (int, float)):
             values.append(float(inp["value"]))
+    values.extend(_numbers_in(m.get("note") or ""))  # thresholds and indices, set in code
     text = f"{m['label']} ({m['period']}) = {m.get('value')} {m.get('unit')}; {m.get('formula')}"
     pages = m.get("source_pages") or []
     return Evidence(m["metric_id"], "metric", text, values, pages[0] if pages else None)

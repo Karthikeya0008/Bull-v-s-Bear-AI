@@ -20,6 +20,7 @@ from backend.ingestion import watcher
 from backend.ingestion.downloader import download_filings
 from backend.ingestion.pipeline import documents_for, ingest_document
 from backend.knowledge.models import Ipo
+from backend.metrics.engine import compute_and_store
 
 log = logging.getLogger("backend.ingest")
 
@@ -100,6 +101,11 @@ def main(argv: list[str] | None = None) -> int:
                 session.commit()
                 failures += 1
                 print(f"ERR {doc.ipo_id:<24} {doc.local_path}: {exc}")
+        for ipo_id in sorted({d.ipo_id for d in docs}):
+            metrics = compute_and_store(session, ipo_id)
+            session.commit()
+            ok = sum(1 for m in metrics if m.status == "ok")
+            print(f"    {ipo_id:<24} metrics: {ok} computed, {len(metrics) - ok} skipped")
     return 1 if failures else 0
 
 

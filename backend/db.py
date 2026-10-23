@@ -18,7 +18,8 @@ class Base(DeclarativeBase):
 
 def make_engine(url: str) -> Engine:
     """Create an engine with foreign keys and WAL enabled for SQLite."""
-    engine = create_engine(url, future=True)
+    engine = create_engine(url, future=True, connect_args={"timeout": 30,
+                                                           "check_same_thread": False})
 
     @event.listens_for(engine, "connect")
     def _sqlite_pragmas(dbapi_conn, _record) -> None:  # pragma: no cover - driver hook

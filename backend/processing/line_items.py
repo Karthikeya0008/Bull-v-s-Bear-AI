@@ -14,7 +14,8 @@ import re
 # statement -> list of (canonical item, regex on the normalised label)
 LINE_ITEMS: dict[str, list[tuple[str, str]]] = {
     "pnl": [
-        ("revenue_from_operations", r"(restated )?revenue from operations( net)?|income from operations"),
+        ("revenue_from_operations",
+         r"(restated )?(total )?revenue from operations( net)?|income from operations"),
         ("other_income", r"other income"),
         ("total_income", r"total (revenue|income)"),
         ("cost_of_materials", r"cost of (raw )?materials? consumed"),
@@ -29,11 +30,14 @@ LINE_ITEMS: dict[str, list[tuple[str, str]]] = {
         ("exceptional_items", r"exceptional items?( net)?"),
         ("profit_before_exceptional_and_tax",
          r"(restated )?profit (loss )?before exceptional items? and tax"),
-        ("profit_before_tax", r"(restated )?profit (loss )?before tax(es)?|pbt"),
+        ("profit_before_tax", r"(restated )?profit (loss )?before tax(es)?|pbt|"
+                              r"(restated )?profit (loss )?before share of .*"),
         ("tax_expense", r"total tax expenses?( credit)?|tax expenses?( credit)?|total tax"),
+        # "Profit for the year" is the bottom line (after share of associates/JVs); a plain
+        # "Profit after tax" line is only used when the former is absent (see tables.py).
         ("profit_after_tax",
-         r"(restated )?(net )?profit (loss )?(after tax )?for the (year|period|year period|period year)"
-         r"|(restated )?(net )?profit (loss )?after tax|pat"),
+         r"(restated )?(net )?profit (loss )?(after tax )?for the (year|period|year period|period year)"),
+        ("profit_after_tax_alt", r"(restated )?(net )?profit (loss )?after tax(es)?|pat"),
         ("total_comprehensive_income",
          r"(restated )?total comprehensive income (loss )?for the (year|period|year period)"),
         ("basic_eps", r"basic( eps)?|basic earnings per (equity )?share.*|earnings per share basic"),
@@ -93,10 +97,12 @@ CONTEXT_HEADINGS = [
 def normalize_label(label: str) -> str:
     """Lowercase, drop note references, roman numerals, brackets and punctuation."""
     t = label.lower().replace("&", " and ").replace("’", "'")
+    t = re.sub(r"\(\s*(?:in\s*)?(?:rs\.?|rupees|inr|₹)[^)]*\)", " ", t)  # "(in Rupees)"
     t = re.sub(r"\(\s*[ivx]+(?:\s*[-+=]\s*[ivx]+)*\s*\)", " ", t)  # (iii-iv) (i+ii)
     t = re.sub(r"\(\s*(?:[ivx]+|[a-z]|\d+)\s*\)", " ", t)       # (i) (a) (1)
     t = re.sub(r"\s+[ivx]+(?:\s*[-+=]\s*[ivx]+)+\s*$", " ", t)   # trailing iii-iv
     t = re.sub(r"^\s*(?:[ivx]+|[a-z]|\d+)[.)]\s+", " ", t)      # i. a) 1.
+    t = re.sub(r"^\s*[ivx]+\s+(?=[a-z]{3})", " ", t)            # "I Revenue ..." (Sr. No.)
     t = re.sub(r"\bnote\s*\d+(?:\.\d+)?\b", " ", t)
     t = t.replace("/", " ").replace("-", " ")
     t = re.sub(r"[^a-z ]+", " ", t)
