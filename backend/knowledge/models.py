@@ -20,7 +20,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db import Base
 
-
 class Ipo(Base):
     """One row per issuer going public. ``ipo_id`` is a stable slug such as ``jio-platforms``."""
 
@@ -94,7 +93,7 @@ class Chunk(Base):
 
     __tablename__ = "chunks"
 
-    chunk_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    chunk_id: Mapped[str] = mapped_column(String(160), primary_key=True)
     ipo_id: Mapped[str] = mapped_column(ForeignKey("ipos.ipo_id", ondelete="CASCADE"), index=True)
     doc_id: Mapped[str] = mapped_column(ForeignKey("documents.doc_id", ondelete="CASCADE"))
     section: Mapped[str] = mapped_column(String(120), index=True)
@@ -137,4 +136,61 @@ class CacheEntry(Base):
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     namespace: Mapped[str] = mapped_column(String(40), index=True)
     value: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Metric(Base):
+    """A computed metric. ``inputs_json`` lists every input figure with its source page."""
+
+    __tablename__ = "metrics"
+
+    metric_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    ipo_id: Mapped[str] = mapped_column(ForeignKey("ipos.ipo_id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    label: Mapped[str] = mapped_column(String(120))
+    period: Mapped[str] = mapped_column(String(20))
+    value: Mapped[float | None] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(20))
+    formula: Mapped[str] = mapped_column(Text)
+    inputs_json: Mapped[str] = mapped_column(Text)
+    source_pages: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(10))  # ok / skipped
+    note: Mapped[str | None] = mapped_column(Text)
+    doc_id: Mapped[str | None] = mapped_column(String(64))
+    computed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Debate(Base):
+    """One debate run, with everything needed to audit or replay it."""
+
+    __tablename__ = "debates"
+
+    debate_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    ipo_id: Mapped[str] = mapped_column(ForeignKey("ipos.ipo_id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="running")  # running/done/failed
+    models_json: Mapped[str] = mapped_column(Text, default="{}")
+    claims_json: Mapped[str] = mapped_column(Text, default="[]")
+    verification_json: Mapped[str] = mapped_column(Text, default="[]")
+    verdict_json: Mapped[str] = mapped_column(Text, default="{}")
+    events_json: Mapped[str] = mapped_column(Text, default="[]")
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class LlmCall(Base):
+    """Token and latency log for every LLM request (cached hits included)."""
+
+    __tablename__ = "llm_calls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    debate_id: Mapped[str | None] = mapped_column(String(32), index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    provider: Mapped[str] = mapped_column(String(20))
+    model: Mapped[str] = mapped_column(String(80))
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer)
+    cached: Mapped[int] = mapped_column(Integer, default=0)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

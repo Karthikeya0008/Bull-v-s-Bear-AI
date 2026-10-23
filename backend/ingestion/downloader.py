@@ -40,9 +40,14 @@ def _stream_to(client: httpx.Client, url: str, dest: Path) -> None:
     tmp = dest.with_suffix(".part")
     with client.stream("GET", url) as resp:
         resp.raise_for_status()
+        expected = int(resp.headers.get("content-length") or 0)
         with tmp.open("wb") as fh:
             for chunk in resp.iter_bytes(1 << 16):
                 fh.write(chunk)
+    if expected and tmp.stat().st_size != expected:
+        size = tmp.stat().st_size
+        tmp.unlink()
+        raise httpx.TransportError(f"truncated download ({size} of {expected} bytes)")
     with tmp.open("rb") as fh:
         if fh.read(5) != b"%PDF-":
             tmp.unlink()

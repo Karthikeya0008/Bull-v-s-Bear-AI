@@ -66,7 +66,7 @@ def parse_date(text: str | None) -> date | None:
     if not text:
         return None
     cleaned = re.sub(r"\s+", " ", str(text)).strip().rstrip(".")
-    cleaned = re.sub(r"T.*$", "", cleaned)  # ISO timestamps
+    cleaned = re.sub(r"T\d{2}:\d{2}.*$", "", cleaned)  # ISO timestamps
     for fmt in _DATE_FORMATS:
         try:
             return datetime.strptime(cleaned, fmt).date()

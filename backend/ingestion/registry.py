@@ -107,14 +107,10 @@ def record_filing(session: Session, rec: FilingRecord) -> tuple[Filing, bool]:
     ipo = get_or_create_ipo(session, rec.company, rec.source)
     apply_fields(ipo, rec.extra, overwrite=False)
     doc_type = rec.doc_type or detect_doc_type(rec.title)
-    existing = session.scalar(
-        select(Filing).where(
-            Filing.issuer_norm == ipo.issuer_norm,
-            Filing.filed_date.is_(rec.filed_date) if rec.filed_date is None
-            else Filing.filed_date == rec.filed_date,
-            Filing.doc_type == doc_type,
-        )
-    )
+    same_date = (Filing.filed_date.is_(None) if rec.filed_date is None
+                 else Filing.filed_date == rec.filed_date)
+    existing = session.scalar(select(Filing).where(
+        Filing.issuer_norm == ipo.issuer_norm, same_date, Filing.doc_type == doc_type))
     if existing is not None:
         existing.pdf_url = existing.pdf_url or rec.pdf_url
         existing.page_url = existing.page_url or rec.page_url
@@ -143,6 +139,7 @@ def load_seed(session: Session, path: Path) -> list[str]:
         if entry.get("ipo_id") and entry["ipo_id"] != ipo.ipo_id:
             raise ValueError(f"seed ipo_id {entry['ipo_id']!r} != derived {ipo.ipo_id!r}")
         apply_fields(ipo, entry, overwrite=True)
+        ipo.source = "seed"
         for f in filings:
             record_filing(session, FilingRecord(
                 company=ipo.company, doc_type=f["doc_type"], source="seed",

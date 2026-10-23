@@ -45,6 +45,16 @@ class Settings(BaseSettings):
     llm_provider_order: str = "gemini,groq,openrouter,cerebras"
     debater_provider: str = "gemini"
     judge_provider: str = "groq"
+    gemini_model: str = "gemini-2.5-flash"
+    groq_model: str = "llama-3.3-70b-versatile"
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    cerebras_model: str = "llama-3.3-70b"
+    llm_max_retries: int = 3
+    llm_timeout_seconds: int = 90
+
+    retrieval_doc_policy: str = "latest"  # latest offer document only, or "all"
+    verify_use_nli: bool = True  # falls back to lexical overlap if the model is unavailable
+    debate_evidence_per_query: int = 3
 
     def resolve(self, path: Path) -> Path:
         """Return ``path`` as an absolute path anchored at the project root."""
