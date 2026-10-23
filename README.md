@@ -122,69 +122,117 @@ Vector DB (ChromaDB, bge-small, CPU)      Metrics Store (SQLite: value, formula,
   Re-runs are free and survive rate limits. Every LLM call is logged (`llm_calls`) with tokens
   and latency.
 
-## Setup (Windows PowerShell)
+## How to run
 
-Requires Python 3.11 and Node 18+. Run each command on its own line.
+All commands are for **Windows PowerShell**, run from the project folder (`E:\BdebateEngine`),
+one command at a time.
 
-```powershell
-python -m venv .venv
-```
-```powershell
-.\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-```powershell
-Copy-Item .env.example .env
-```
-Edit `.env` and add free-tier keys. `GEMINI_API_KEY` is the debaters' provider and
-`GROQ_API_KEY` the judge's; OpenRouter and Cerebras are optional fallbacks. Without keys the
-system still runs end to end, using clearly labelled rule-based agents.
+### A. Run it (when already set up)
 
+Open **two PowerShell terminals** in the project folder.
+
+**Terminal 1: start the backend API**
 ```powershell
-npm --prefix frontend install
+.\.venv\Scripts\python.exe -m uvicorn backend.api.main:app --port 8000
 ```
+Wait until it prints `Application startup complete`, and leave it running.
 
-## Run
+**Terminal 2: start the dashboard**
+```powershell
+npm --prefix frontend run dev
+```
+Wait for `Local: http://localhost:5173/`, and leave it running.
 
-1. Ingest (downloads the curated IPOs from SEBI, parses, embeds, extracts tables, computes metrics):
+**Open the app** in your browser at **http://localhost:5173**
+
+**Using it:**
+1. On the IPO list, click **Jio Platforms Limited** (or Moneyview / Orient Cables).
+2. Click **⚖ Start Debate** to run a live debate. It needs internet and your API keys, and takes
+   about 2–4 minutes.
+3. Or click a saved debate under **Saved debates** to replay it instantly, with no internet or
+   API calls. This is the safest option for a live demo.
+4. Click any citation chip (📄 or ƒx) to see the source page or the formula.
+5. Open the **Back-test** tab to see verdicts against actual listing returns.
+
+**To stop:** press `Ctrl + C` in both terminals.
+
+### B. First-time setup (new machine)
+
+You need **Python 3.11** and **Node 18+**. Run these one at a time:
+
+1. Create the virtual environment:
+   ```powershell
+   python -m venv .venv
+   ```
+2. Install PyTorch (CPU build):
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+   ```
+3. Install the Python packages:
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
+4. Install the dashboard packages:
+   ```powershell
+   npm --prefix frontend install
+   ```
+5. Create your settings file:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+6. Open `.env` in an editor and fill in `GEMINI_API_KEY` (debaters) and `GROQ_API_KEY` (judge).
+   `OPENROUTER_API_KEY` or `CEREBRAS_API_KEY` is optional but recommended: the judge must use a
+   different provider from the debaters, so a third key keeps verdicts LLM-based when one free
+   tier runs out. Without any keys the system still runs, using clearly labelled rule-based agents.
+7. Download and process the IPO documents. This takes about 15 minutes the first time, mostly
+   for embeddings:
    ```powershell
    .\.venv\Scripts\python.exe -m backend.ingest --all
    ```
-2. Start the API:
-   ```powershell
-   .\.venv\Scripts\python.exe -m uvicorn backend.api.main:app --port 8000
-   ```
-3. Start the dashboard (second terminal), then open http://localhost:5173:
-   ```powershell
-   npm --prefix frontend run dev
-   ```
+8. Then follow **Section A**.
 
-Other commands:
+### Useful extras
 
+Check for new IPO filings on SEBI and NSE:
 ```powershell
 .\.venv\Scripts\python.exe -m backend.ingest --watch
 ```
+
+Analyse a different IPO: drop its PDF into `data\raw\<ipo-id>\`, named like
+`RHP_2026-09-21.pdf`, then run:
+```powershell
+.\.venv\Scripts\python.exe -m backend.ingest --all
+```
+
+Re-process one IPO from scratch (embeddings come from the cache, so it is quick):
 ```powershell
 .\.venv\Scripts\python.exe -m backend.ingest --ipo jio-platforms --force
 ```
+
+Inspect what was ingested from the command line:
 ```powershell
 .\.venv\Scripts\python.exe -m backend.query chunks --ipo jio-platforms --q "repayment of borrowings" -k 5
 ```
 ```powershell
 .\.venv\Scripts\python.exe -m backend.query tables --ipo jio-platforms --statement pnl
 ```
+
+Run the tests:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-**Manual fallback.** Drop any offer-document PDF into `data/raw/<ipo_id>/` (name it like
-`RHP_2026-09-21.pdf`), then run `--all`.
+### If something goes wrong
 
-**Offline demo.** Each finished debate stores every streamed event. On an IPO page, click a
-saved debate to **replay** it. This needs no internet and no LLM. Back-test prices are cached
-in `data/backtest_prices.csv`.
+- **Dashboard says "Could not reach the API":** Terminal 1 isn't running. Start it again.
+- **A debate shows "rule-based" instead of Gemini/Groq:** your free-tier quota is used up, or
+  Gemini is busy. Wait a while, or add an OpenRouter key. Replaying saved debates always works.
+- **A model error such as "no longer available":** free-tier models change. Set `GEMINI_MODEL`
+  or `GROQ_MODEL` in `.env` to a model your key lists.
+- **Port already in use:** a previous run is still open. Close the old terminals, or restart your PC.
+
+**Offline demo.** Each finished debate stores every streamed event, so replay needs no internet
+and no LLM. Back-test prices are cached in `data/backtest_prices.csv`.
 
 ## API
 
@@ -233,7 +281,8 @@ Ruff; React, React Router, Vite, TypeScript, Tailwind CSS.
 
 **Models:** [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) (MIT),
 [cross-encoder/nli-deberta-v3-small](https://huggingface.co/cross-encoder/nli-deberta-v3-small)
-(Apache-2.0), Google Gemini and Llama 3.3 70B (via Groq / OpenRouter / Cerebras free tiers).
+(Apache-2.0), Google Gemini 3.5 Flash (debaters), OpenAI gpt-oss-120b served by Groq (judge),
+and optional OpenRouter / Cerebras models as fallbacks (all free tiers).
 
 **Methods:** Altman (2005) *An emerging market credit scoring system for corporate bonds*;
 Beneish (1999) *The Detection of Earnings Manipulation*; Cormack, Clarke & Büttcher (2009)
