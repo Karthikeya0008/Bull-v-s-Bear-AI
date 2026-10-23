@@ -1,0 +1,20 @@
+# Reference list of the public sources the watcher reads. URLs are defined in code
+# (backend/ingestion/sources/*.py); this file documents them and their known behaviour.
+
+sebi:
+  draft_offer_documents: https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=3&ssid=15&smid=10
+  red_herring_documents: https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=3&ssid=15&smid=11
+  notes: AJAX listing needs the session cookie from the listing page; full PDF is in the filing page iframe.
+
+nse:
+  upcoming: https://www.nseindia.com/api/all-upcoming-issues?category=ipo
+  past: https://www.nseindia.com/api/public-past-issues
+  notes: Needs cookies from a normal page visit first. Mainboard only (series EQ).
+
+bse:
+  public_issues: https://api.bseindia.com/BseIndiaAPI/api/PubIssues/w?id=0&Type=IPO&IPOType=
+  notes: Behind Akamai bot protection; currently returns 403 to scripts, so the source is best-effort.
+
+manual_fallback:
+  path: data/raw/<ipo_id>/*.pdf
+  notes: Any PDF dropped here is ingested. Name files like RHP_2026-09-21.pdf so the doc type is detected.

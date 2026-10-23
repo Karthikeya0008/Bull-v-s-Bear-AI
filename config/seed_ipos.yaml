@@ -1,0 +1,68 @@
+# Manually curated IPOs. Values here overwrite anything the watcher scrapes.
+# Amounts in INR crore. Dates are ISO (YYYY-MM-DD). Leave a field out if unknown.
+# Sources: SEBI filings pages (offer documents), NSE issue pages, exchange/press coverage
+# of price band announcements. Fresh-issue/OFS figures are from the RHP cover pages.
+
+ipos:
+  - company: Jio Platforms Limited
+    ipo_id: jio-platforms
+    sector: Telecom & Digital Services
+    exchanges: NSE,BSE
+    price_band_low: 1065
+    price_band_high: 1119
+    lot_size: 12
+    face_value: 10
+    issue_open: 2026-10-21
+    issue_close: 2026-10-23
+    listing_date: 2026-10-28   # tentative
+    fresh_issue_shares: 270000000
+    ofs_shares: 0
+    fresh_issue_cr: 30213.0
+    ofs_cr: 0
+    nse_symbol: JPL
+    filings:
+      - doc_type: DRHP
+        filed_date: 2026-06-19
+        title: Jio Platforms Ltd - DRHP
+        page_url: https://www.sebi.gov.in/filings/public-issues/jun-2026/jio-platforms-ltd-drhp_102248.html
+      - doc_type: RHP
+        filed_date: 2026-10-15
+        title: Jio Platforms Limited - RHP
+        page_url: https://www.sebi.gov.in/filings/public-issues/oct-2026/jio-platforms-limited-rhp_105274.html
+
+  - company: Moneyview Limited
+    ipo_id: moneyview
+    sector: Financial Services (Digital Lending)
+    exchanges: NSE,BSE
+    price_band_low: 32
+    price_band_high: 34
+    lot_size: 441
+    face_value: 1
+    issue_open: 2026-09-24
+    issue_close: 2026-09-28
+    listing_date: 2026-10-01
+    fresh_issue_cr: 750.0
+    ofs_cr: 341.68
+    filings:
+      - doc_type: RHP
+        filed_date: 2026-09-21
+        title: Moneyview Limited - RHP
+        page_url: https://www.sebi.gov.in/filings/public-issues/sep-2026/moneyview-limited-rhp_104597.html
+
+  - company: Orient Cables (India) Limited
+    ipo_id: orient-cables-india
+    sector: Cables & Wires
+    exchanges: NSE,BSE
+    price_band_low: 258
+    price_band_high: 272
+    lot_size: 55
+    issue_open: 2026-09-25
+    issue_close: 2026-09-29
+    listing_date: 2026-10-05
+    fresh_issue_cr: 320.0
+    ofs_cr: 232.0
+    filings:
+      - doc_type: RHP
+        filed_date: 2026-09-21
+        title: Orient Cables (India) Limited - RHP
+        page_url: https://www.sebi.gov.in/filings/public-issues/sep-2026/orient-cables-india-limited-rhp_104663.html
