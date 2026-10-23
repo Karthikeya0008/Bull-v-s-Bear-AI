@@ -50,10 +50,10 @@ class EvidenceBook:
                          f"{note} [pages {pages}]")
         return "\n".join(lines)
 
-    def chunks_prompt(self, ids: list[str], max_chars: int = 900) -> str:
-        """Chunk excerpts as prompt blocks."""
+    def chunks_prompt(self, ids: list[str], max_chars: int = 650, max_chunks: int = 14) -> str:
+        """Chunk excerpts as prompt blocks (bounded so prompts fit free-tier token limits)."""
         blocks = []
-        for cid in ids:
+        for cid in ids[:max_chunks]:
             c = self.chunks[cid]
             text = " ".join(c["text"].split())[:max_chars]
             blocks.append(f"[{cid}] ({c['doc_type']}, {c['section']}, p.{c['page']})\n{text}")

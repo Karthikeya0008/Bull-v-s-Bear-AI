@@ -147,8 +147,9 @@ class LLMClient:
                     "contents": [{"role": "user", "parts": [{"text": user}]}],
                     "generationConfig": {"temperature": temperature,
                                          "responseMimeType": "application/json"}}
+            # key goes in a header, never the URL, so it cannot leak into logs or errors
             resp = self._post(GEMINI_URL.format(model=model), body, timeout,
-                              params={"key": self._key("gemini")})
+                              headers={"x-goog-api-key": self._key("gemini")})
             payload = resp.json()
             text = "".join(p.get("text", "") for p in
                            payload["candidates"][0]["content"]["parts"])
@@ -174,7 +175,14 @@ class LLMClient:
             raise RetryableError(type(exc).__name__) from exc
         if resp.status_code == 429 or resp.status_code >= 500:
             raise RetryableError(f"HTTP {resp.status_code}")
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            # Report the provider's own message (e.g. "model not found"), never the request.
+            try:
+                detail = resp.json().get("error", {})
+                detail = detail.get("message", detail) if isinstance(detail, dict) else detail
+            except ValueError:
+                detail = resp.text[:200]
+            raise ValueError(f"HTTP {resp.status_code}: {str(detail)[:300]}")
         return resp
 
     def _log(self, provider: str, model: str, usage: dict, cached: bool, latency: int | None,

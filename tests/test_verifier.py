@@ -104,3 +104,12 @@ def test_hypothesis_strips_attribution_and_page_refs_are_not_figures():
     assert verifier.hypothesis_text(text) == "We have incurred significant indebtedness."
     assert extract_figures("See pages 54-56 and p.112 for the ₹25,000 million") == \
         [("25,000", 25000.0)]
+
+
+def test_hedged_figures_get_wider_tolerance(evidence):
+    ev = {"m": metric_evidence({**METRIC, "metric_id": "m", "value": 20.46, "unit": "%",
+                                "inputs": {}})}
+    hedged = {"claim_id": "H", "text": "PAT margin is over 20%.", "evidence": ["m"]}
+    exact = {"claim_id": "E", "text": "PAT margin is 20%.", "evidence": ["m"]}
+    assert verify_claim(hedged, ev).status == "supported"
+    assert verify_claim(exact, ev).status == "struck"

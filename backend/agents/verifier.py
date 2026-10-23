@@ -95,6 +95,16 @@ def extract_figures(text: str) -> list[tuple[str, float]]:
     return out
 
 
+_APPROX_RX = re.compile(r"(?:over|nearly|about|around|roughly|almost|approximately|more than|"
+                        r"less than|under|~|close to)\s*(?:₹|rs\.?\s*)?$", re.IGNORECASE)
+
+
+def is_approximate(text: str, raw: str) -> bool:
+    """True when a figure is hedged ("over 20%", "nearly ₹50,000"): allow 10% tolerance."""
+    idx = text.find(raw)
+    return idx > 0 and bool(_APPROX_RX.search(text[max(0, idx - 20):idx]))
+
+
 def _numbers_in(text: str) -> list[float]:
     vals = []
     for m in _NUM_RX.finditer(text):
@@ -171,8 +181,10 @@ def verify_claim(claim: dict, evidence: dict[str, Evidence],
 
     cited = [evidence[r] for r in valid]
     candidates = [v for e in cited for v in e.values]
-    unmatched = [raw for raw, val in extract_figures(claim.get("text", ""))
-                 if not figure_supported(val, candidates)]
+    text = claim.get("text", "")
+    unmatched = [raw for raw, val in extract_figures(text)
+                 if not figure_supported(val, candidates,
+                                         0.1 if is_approximate(text, raw) else 0.015)]
     if unmatched:
         return Verification(cid, "struck", f"Figure(s) {', '.join(unmatched)} not found in the "
                             "cited sources.", None, method, valid, invalid, unmatched)

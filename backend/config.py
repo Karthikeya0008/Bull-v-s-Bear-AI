@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     llm_provider_order: str = "gemini,groq,openrouter,cerebras"
     debater_provider: str = "gemini"
     judge_provider: str = "groq"
-    gemini_model: str = "gemini-2.5-flash"
-    groq_model: str = "llama-3.3-70b-versatile"
+    gemini_model: str = "gemini-3.5-flash"
+    groq_model: str = "openai/gpt-oss-120b"
     openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     cerebras_model: str = "llama-3.3-70b"
     llm_max_retries: int = 3
