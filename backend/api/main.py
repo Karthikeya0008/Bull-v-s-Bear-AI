@@ -108,17 +108,69 @@ def get_metrics(ipo_id: str, recompute: bool = False) -> list[dict]:
 
 
 @app.get("/api/ipos/{ipo_id}/financials")
-def get_financials(ipo_id: str) -> list[dict]:
-    """Extracted statement rows of the latest document."""
+def get_financials(ipo_id: str, doc_id: str | None = None) -> list[dict]:
+    """Extracted statement rows of one document (default: the latest)."""
     with session_scope() as s:
-        doc = s.scalars(select(Document).where(Document.ipo_id == ipo_id)
-                        .order_by(Document.filed_date.desc())).first()
+        q = select(Document).where(Document.ipo_id == ipo_id)
+        if doc_id:
+            q = q.where(Document.doc_id == doc_id)
+        doc = s.scalars(q.order_by(Document.filed_date.desc())).first()
         if doc is None:
             return []
         return [{"statement": r.statement, "line_item": r.line_item, "period": r.period,
                  "value_inr_mn": r.value_inr_mn, "page": r.page, "raw_label": r.raw_label,
                  "basis": r.basis, "is_override": r.is_override}
                 for r in s.scalars(select(FinancialRow).where(FinancialRow.doc_id == doc.doc_id))]
+
+
+@app.get("/api/ipos/{ipo_id}/chunks")
+def list_chunks(ipo_id: str, doc_id: str | None = None, section: str | None = None,
+                q: str | None = None, offset: int = Query(0, ge=0),
+                limit: int = Query(50, ge=1, le=200)) -> dict:
+    """Embedded chunks as stored in SQLite, paginated and filterable (Data Explorer)."""
+    with session_scope() as s:
+        base = select(Chunk).where(Chunk.ipo_id == ipo_id)
+        if doc_id:
+            base = base.where(Chunk.doc_id == doc_id)
+        sections = [{"section": sec, "count": n} for sec, n in s.execute(
+            select(Chunk.section, func.count()).where(base.whereclause)
+            .group_by(Chunk.section).order_by(func.min(Chunk.ordinal)))]
+        if section:
+            base = base.where(Chunk.section == section)
+        if q:
+            base = base.where(Chunk.text.ilike(f"%{q}%"))
+        total = s.scalar(select(func.count()).select_from(base.subquery()))
+        types = dict(s.execute(select(Document.doc_id, Document.doc_type)
+                               .where(Document.ipo_id == ipo_id)).all())
+        rows = s.scalars(base.order_by(Chunk.doc_id, Chunk.ordinal).offset(offset).limit(limit))
+        items = [{"chunk_id": c.chunk_id, "doc_id": c.doc_id, "doc_type": types.get(c.doc_id),
+                  "section": c.section, "page": c.page, "page_end": c.page_end,
+                  "ordinal": c.ordinal, "chars": len(c.text), "text": c.text} for c in rows]
+    return {"total": total, "offset": offset, "limit": limit, "sections": sections,
+            "items": items}
+
+
+@app.get("/api/ipos/{ipo_id}/embedding-status")
+def embedding_status(ipo_id: str) -> list[dict]:
+    """Per document: chunks stored in SQLite vs vectors present in ChromaDB."""
+    from backend.knowledge.vector_store import VectorStore
+
+    col = VectorStore().collection(ipo_id)
+    with session_scope() as s:
+        docs = s.scalars(select(Document).where(Document.ipo_id == ipo_id)
+                         .order_by(Document.filed_date.desc())).all()
+        counts = dict(s.execute(select(Chunk.doc_id, func.count()).where(Chunk.ipo_id == ipo_id)
+                                .group_by(Chunk.doc_id)).all())
+        out = []
+        for d in docs:
+            vectors = len(col.get(where={"doc_id": d.doc_id}, include=[])["ids"])
+            out.append({"doc_id": d.doc_id, "doc_type": d.doc_type,
+                        "filed_date": d.filed_date.isoformat() if d.filed_date else None,
+                        "sqlite_chunks": counts.get(d.doc_id, 0), "vectors": vectors,
+                        "in_sync": counts.get(d.doc_id, 0) == vectors,
+                        "embedding_model": "BAAI/bge-small-en-v1.5",
+                        "collection": col.name})
+    return out
 
 
 class SearchRequest(BaseModel):

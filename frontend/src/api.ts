@@ -1,4 +1,6 @@
-import type { BacktestRow, ChunkDetail, DebateEvent, DebateSummary, Ipo, Metric } from "./types";
+import type {
+  BacktestRow, ChunkDetail, ChunkPage, DebateEvent, DebateSummary, EmbeddingStatus, FinancialRowData, Ipo, Metric,
+} from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -13,6 +15,15 @@ export const api = {
   debates: (id: string) => get<DebateSummary[]>(`/api/ipos/${id}/debates`),
   chunk: (id: string) => get<ChunkDetail>(`/api/chunks/${id}`),
   backtest: () => get<BacktestRow[]>(`/api/backtest`),
+  chunks: (id: string, params: Record<string, string | number | undefined>) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]),
+    );
+    return get<ChunkPage>(`/api/ipos/${id}/chunks?${qs}`);
+  },
+  embeddingStatus: (id: string) => get<EmbeddingStatus[]>(`/api/ipos/${id}/embedding-status`),
+  financials: (id: string, docId?: string) =>
+    get<FinancialRowData[]>(`/api/ipos/${id}/financials${docId ? `?doc_id=${docId}` : ""}`),
 };
 
 /** Parse a text/event-stream body and call onEvent for every `data:` payload. */

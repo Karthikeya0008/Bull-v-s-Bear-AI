@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import IpoList from "./pages/IpoList";
 import IpoDetail from "./pages/IpoDetail";
 import Backtest from "./pages/Backtest";
+import DataExplorer from "./pages/DataExplorer";
 
 export default function App() {
   const link = ({ isActive }: { isActive: boolean }) =>
@@ -36,6 +37,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<IpoList />} />
           <Route path="/ipo/:ipoId" element={<IpoDetail />} />
+          <Route path="/ipo/:ipoId/data" element={<DataExplorer />} />
           <Route path="/backtest" element={<Backtest />} />
         </Routes>
       </main>

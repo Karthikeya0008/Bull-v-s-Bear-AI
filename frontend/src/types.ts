@@ -138,3 +138,45 @@ export interface BacktestRow {
   hit: boolean | null;
   price_source: string | null;
 }
+
+export interface ChunkRow {
+  chunk_id: string;
+  doc_id: string;
+  doc_type: string | null;
+  section: string;
+  page: number;
+  page_end: number;
+  ordinal: number;
+  chars: number;
+  text: string;
+}
+
+export interface ChunkPage {
+  total: number;
+  offset: number;
+  limit: number;
+  sections: { section: string; count: number }[];
+  items: ChunkRow[];
+}
+
+export interface EmbeddingStatus {
+  doc_id: string;
+  doc_type: string;
+  filed_date: string | null;
+  sqlite_chunks: number;
+  vectors: number;
+  in_sync: boolean;
+  embedding_model: string;
+  collection: string;
+}
+
+export interface FinancialRowData {
+  statement: string;
+  line_item: string;
+  period: string;
+  value_inr_mn: number;
+  page: number;
+  raw_label: string;
+  basis: string;
+  is_override: number;
+}

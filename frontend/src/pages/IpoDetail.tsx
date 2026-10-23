@@ -137,6 +137,7 @@ export default function IpoDetail() {
             {ipo.sector && <div className="mt-1 text-sm text-slate-500">{ipo.sector}{ipo.exchanges ? ` · ${ipo.exchanges.replace(",", " & ")}` : ""}</div>}
           </div>
           <div className="flex items-center gap-2">
+            {!!ipo.chunks && <Link to={`/ipo/${ipo.ipo_id}/data`} className="btn-secondary">🗄 View data</Link>}
             {running && <button onClick={() => abort.current?.abort()} className="btn-secondary">Stop</button>}
             <button disabled={running || !ipo.chunks} onClick={() => run("live")} className="btn-primary px-5 py-2.5">
               {running ? (
